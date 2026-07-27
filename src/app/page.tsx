@@ -32,6 +32,8 @@ export default function Home() {
   const [editForm, setEditForm] = useState({ id: 0, nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; nombre: string; categoria: string; cantidad: string; nota: string } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddListaModal, setShowAddListaModal] = useState(false);
+  const [listaForm, setListaForm] = useState({ nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
