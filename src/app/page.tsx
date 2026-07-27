@@ -1,26 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 
 dayjs.locale('es');
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
-
-type Producto = {
-  id: number; nombre: string; categoria: string; tiene: boolean; nota?: string; cantidad?: string;
-};
-
-type MenuDia = {
-  id: number; fecha: string; platillo?: string; proteina?: string; verduras?: string;
-  carbohidrato?: string; bebida?: string; preparacion?: string; tips?: string;
-  tiempo_total?: string; mensaje_completo?: string;
-};
+type Producto = { id: number; nombre: string; categoria: string; tiene: boolean; nota?: string; cantidad?: string };
+type MenuDia = { id: number; fecha: string; platillo?: string; proteina?: string; verduras?: string; carbohidrato?: string; bebida?: string; preparacion?: string; tips?: string; tiempo_total?: string; mensaje_completo?: string };
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('despensa');
@@ -29,18 +17,26 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [mensaje, setMensaje] = useState('');
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
+  // Inicializar supabase solo en el cliente (navegador)
   useEffect(() => {
+    supabaseRef.current = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
     loadData();
   }, []);
 
   async function loadData() {
     setLoading(true);
     try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
       const hoy = dayjs().format('YYYY-MM-DD');
       const [r1, r2] = await Promise.all([
-        supabase.from('productos').select('*').order('categoria', { ascending: true }),
-        supabase.from('menu_del_dia').select('*').eq('fecha', hoy).order('created_at', { ascending: false }).limit(1)
+        sb.from('productos').select('*').order('categoria', { ascending: true }),
+        sb.from('menu_del_dia').select('*').eq('fecha', hoy).order('created_at', { ascending: false }).limit(1)
       ]);
       if (r1.data) setProductos(r1.data);
       if (r2.data?.length) setMenuHoy(r2.data[0]);
@@ -52,7 +48,9 @@ export default function Home() {
     e.preventDefault();
     if (!form.nombre.trim()) return;
     try {
-      await supabase.from('productos').insert({
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      await sb.from('productos').insert({
         nombre: form.nombre.trim(), categoria: form.categoria,
         cantidad: form.cantidad.trim() || null, nota: form.nota.trim() || null,
         tiene: true, creado_por: 'web'
@@ -104,13 +102,12 @@ export default function Home() {
               <button onClick={loadData} className="cursor-pointer bg-gray-100 hover:bg-gray-200 border-none px-3 py-1.5 rounded-lg text-sm">🔄</button>
             </div>
             {loading ? <p className="text-gray-400 italic">Cargando...</p> : (
-              Object.entries(
-                productos.reduce((acc, p) => {
-                  if (!acc[p.categoria]) acc[p.categoria] = [];
-                  acc[p.categoria].push(p);
-                  return acc;
-                }, {} as Record<string, Producto[]>)
-              ).sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b) || 0).map(([cat, items]) => (
+              Object.entries(productos.reduce((acc, p) => {
+                if (!acc[p.categoria]) acc[p.categoria] = [];
+                acc[p.categoria].push(p);
+                return acc;
+              }, {} as Record<string, Producto[]>))
+              .sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b)).map(([cat, items]) => (
                 <div key={cat} className="mb-2">
                   <h3 className="font-semibold text-gray-600 py-1 text-sm">{categorias[cat] || cat}</h3>
                   {items.map(p => (
@@ -133,32 +130,25 @@ export default function Home() {
           <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
             <h2 className="text-lg font-bold text-[#2d5a27] mb-4 pb-3 border-b-2 border-gray-100">➕ Agregar producto</h2>
             <form onSubmit={agregarProducto}>
-              {[
-                { label: 'Producto *', key: 'nombre', placeholder: 'Ej: Frijoles, Leche...', type: 'text', required: true },
-                { label: 'Cantidad', key: 'cantidad', placeholder: 'Ej: 1 kg', type: 'text' },
-                { label: 'Nota', key: 'nota', placeholder: 'Ej: Se está acabando', type: 'text' }
-              ].map(f => (
-                <div key={f.key} className="mb-3">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">{f.label}</label>
-                  <input value={(form as any)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+              {['nombre','cantidad','nota'].map(key => (
+                <div key={key} className="mb-3">
+                  <label className="block text-sm font-medium text-gray-600 mb-1 capitalize">{key === 'nombre' ? 'Producto *' : key}</label>
+                  <input value={(form as any)[key]} onChange={e => setForm({...form, [key]: e.target.value})}
                     className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                    placeholder={f.placeholder} required={f.required} />
+                    placeholder={key === 'nombre' ? 'Ej: Frijoles, Leche...' : key === 'cantidad' ? 'Ej: 1 kg' : 'Ej: Se está acabando'}
+                    required={key === 'nombre'} />
                 </div>
               ))}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
-                <select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}
+                <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}
                   className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none">
-                  {Object.entries(categorias).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+                  {Object.entries(categorias).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
-              <button type="submit" className="cursor-pointer w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors border-none">✅ Agregar</button>
+              <button type="submit" className="cursor-pointer w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 border-none">✅ Agregar</button>
             </form>
-            {mensaje && (
-              <div className={`mt-3 p-2.5 rounded-lg text-sm ${mensaje.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                {mensaje}
-              </div>
-            )}
+            {mensaje && <div className={`mt-3 p-2.5 rounded-lg text-sm ${mensaje.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{mensaje}</div>}
           </div>
         )}
 
