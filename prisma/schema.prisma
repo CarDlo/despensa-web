@@ -37,3 +37,16 @@ model menu_del_dia {
 
   @@map("menu_del_dia")
 }
+
+model lista_mercado {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @map("created_at")
+  nombre     String
+  categoria  String   @default("otros")
+  cantidad   String   @default("")
+  nota       String   @default("")
+  comprado   Boolean  @default(false)
+  origen     String   @default("despensa")
+
+  @@map("lista_mercado")
+}
