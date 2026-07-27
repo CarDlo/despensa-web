@@ -201,7 +201,7 @@ export default function Home() {
                         {p.nota && <span className="text-sm text-gray-400 italic">— {p.nota}</span>}
                         {p.cantidad && <span className="text-sm text-gray-400">({p.cantidad})</span>}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <div className="flex gap-1 flex-shrink-0">
                         <button onClick={() => abrirEditar(p)}
                           className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors" title="Editar">✏️</button>
                         <button onClick={() => setDeleteConfirm({ id: p.id, nombre: p.nombre })}
