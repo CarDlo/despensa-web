@@ -326,6 +326,78 @@ export default function Home() {
         </footer>
       </div>
 
+      {/* 🛒 Modal Agregar a Lista de Compras */}
+      {showAddListaModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={() => setShowAddListaModal(false)}>
+          <div className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#2d5a27]">🛒 Agregar a la lista</h3>
+              <button onClick={() => setShowAddListaModal(false)} className="cursor-pointer bg-transparent border-none text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <form onSubmit={agregarAListaDirecto}>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
+                <input value={listaForm.nombre} onChange={e => setListaForm({...listaForm, nombre: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
+                  placeholder="Buscar o escribir producto..." required autoFocus />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
+                <input value={listaForm.cantidad} onChange={e => setListaForm({...listaForm, cantidad: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: 1 kg" />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Nota</label>
+                <input value={listaForm.nota} onChange={e => setListaForm({...listaForm, nota: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: marca, preferencia" />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
+                <select value={listaForm.categoria} onChange={e => setListaForm({...listaForm, categoria: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none">
+                  {Object.entries(categorias).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <button type="submit" className="cursor-pointer w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors border-none">🛒 Agregar a la lista</button>
+            </form>
+            <div className="mt-5 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Productos comunes</h4>
+              {(() => {
+                const sugerencias = productos.reduce((acc, p) => {
+                  if (!acc[p.categoria]) acc[p.categoria] = new Set();
+                  acc[p.categoria].add(p.nombre);
+                  return acc;
+                }, {} as Record<string, Set<string>>);
+                const catLabels: Record<string, string> = {
+                  proteinas: '🥩 Proteínas', verduras: '🥦 Verduras', frutas: '🍎 Frutas',
+                  granos: '🌾 Granos', lacteos: '🧀 Lácteos', congelados: '❄️ Congelados',
+                  snacks: '🍿 Snacks', aceites: '🫒 Aceites', condimentos: '🧂 Condimentos',
+                  bebidas: '🥤 Bebidas', cafe: '☕ Café', despensa: '🗄️ Despensa',
+                  limpieza: '🧹 Limpieza', cuidado_personal: '🧴 Cuidado Personal', otros: '📦 Otros'
+                };
+                const entries = Object.entries(sugerencias).filter(([, items]) => items.size > 0).sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b));
+                if (entries.length === 0) return <p className="text-xs text-gray-400 italic">No hay productos sugeridos aún</p>;
+                return entries.map(([cat, items]) => (
+                  <div key={cat} className="mb-3">
+                    <div className="text-xs text-gray-400 font-medium mb-1.5">{catLabels[cat] || cat}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(items).slice(0, 10).map(item => (
+                        <button key={item}
+                          onClick={() => setListaForm(prev => ({...prev, nombre: item, categoria: cat}))}
+                          className="cursor-pointer text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 hover:text-blue-700 transition-colors border-none">
+                          + {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+              <p className="text-xs text-gray-400 mt-2 italic">Tus productos comunes para agregar rápido</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ➕ Modal Agregar Producto + Sugerencias */}
       {showAddModal && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={() => setShowAddModal(false)}>
