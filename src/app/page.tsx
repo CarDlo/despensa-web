@@ -271,9 +271,14 @@ export default function Home() {
 
         {/* Tab: 🛒 Lista de Compras */}
         {activeTab === 'lista' && (
-          <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
-              <h2 className="text-lg font-bold text-[#2d5a27]">🛒 Lista de Compras</h2>
+          <>
+            <button onClick={() => setShowAddListaModal(true)}
+              className="cursor-pointer w-full py-3 mb-4 bg-[#2d5a27] text-white font-semibold rounded-xl hover:bg-[#1e3d1a] transition-colors border-none flex items-center justify-center gap-2 text-base shadow-sm">
+              🛒 Agregar a la lista
+            </button>
+            <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
+                <h2 className="text-lg font-bold text-[#2d5a27]">🛒 Lista de Compras</h2>
               <button onClick={loadLista} className="cursor-pointer bg-gray-100 hover:bg-gray-200 border-none px-3 py-1.5 rounded-lg text-sm">🔄</button>
             </div>
             {listaMercado.length === 0 ? (
