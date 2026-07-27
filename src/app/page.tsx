@@ -306,6 +306,7 @@ export default function Home() {
               ))
             )}
           </div>
+          </>
         )}
 
         {/* Tab: Sugerencia */}
