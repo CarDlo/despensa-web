@@ -26,14 +26,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [mensaje, setMensaje] = useState('');
-
-  // Edit modal state
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ id: 0, nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
-
-  // Delete confirm state
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; nombre: string } | null>(null);
-
+  // Collapsible categories: true = colapsado, false/undefined = expandido
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
@@ -58,6 +55,10 @@ export default function Home() {
       if (r2.data?.length) setMenuHoy(r2.data[0]);
     } catch (e) { console.error(e); }
     setLoading(false);
+  }
+
+  function toggleCategoria(cat: string) {
+    setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }));
   }
 
   async function agregarProducto(e: React.FormEvent) {
@@ -89,10 +90,8 @@ export default function Home() {
       const sb = supabaseRef.current;
       if (!sb) return;
       await sb.from('productos').update({
-        nombre: editForm.nombre.trim(),
-        categoria: editForm.categoria,
-        cantidad: editForm.cantidad.trim() || null,
-        nota: editForm.nota.trim() || null
+        nombre: editForm.nombre.trim(), categoria: editForm.categoria,
+        cantidad: editForm.cantidad.trim() || null, nota: editForm.nota.trim() || null
       }).eq('id', editForm.id);
       setEditModal(false);
       setMensaje(`✅ ${editForm.nombre} actualizado`);
@@ -122,6 +121,14 @@ export default function Home() {
       loadData();
     } catch { /* ignore */ }
   }
+
+  // Group products by category
+  const grouped = productos.reduce((acc, p) => {
+    if (!acc[p.categoria]) acc[p.categoria] = [];
+    acc[p.categoria].push(p);
+    return acc;
+  }, {} as Record<string, Producto[]>);
+  const sortedCats = Object.keys(grouped).sort((a, b) => catOrden.indexOf(a) - catOrden.indexOf(b));
 
   return (
     <div className="min-h-screen bg-[#f5f5f0]">
@@ -155,25 +162,35 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab: Despensa */}
+        {/* Tab: Despensa - Categorías desplegables */}
         {activeTab === 'despensa' && (
           <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
             <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
               <h2 className="text-lg font-bold text-[#2d5a27]">📦 Inventario ({productos.length})</h2>
               <button onClick={loadData} className="cursor-pointer bg-gray-100 hover:bg-gray-200 border-none px-3 py-1.5 rounded-lg text-sm">🔄</button>
             </div>
-            {loading ? <p className="text-gray-400 italic">Cargando...</p> : (
-              Object.entries(
-                productos.reduce((acc, p) => {
-                  if (!acc[p.categoria]) acc[p.categoria] = [];
-                  acc[p.categoria].push(p);
-                  return acc;
-                }, {} as Record<string, Producto[]>)
-              ).sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b)).map(([cat, items]) => (
-                <div key={cat} className="mb-2">
-                  <h3 className="font-semibold text-gray-600 py-1 text-sm">{categorias[cat] || cat}</h3>
-                  {items.map(p => (
-                    <div key={p.id} className="flex justify-between items-center py-2.5 border-b border-gray-50 group">
+            {loading ? <p className="text-gray-400 italic">Cargando...</p> : sortedCats.map(cat => {
+              const items = grouped[cat];
+              const isCollapsed = collapsed[cat];
+              return (
+                <div key={cat} className="mb-1">
+                  {/* Category header - click to toggle */}
+                  <button
+                    onClick={() => toggleCategoria(cat)}
+                    className="cursor-pointer w-full flex items-center gap-2 py-2 text-left hover:bg-gray-50 rounded-lg px-2 transition-colors border-none bg-transparent"
+                  >
+                    <span className="text-xs text-gray-400 w-4 flex-shrink-0 transition-transform">
+                      {isCollapsed ? '▶' : '▼'}
+                    </span>
+                    <h3 className="font-semibold text-gray-600 text-sm flex-1">
+                      {categorias[cat] || cat}
+                    </h3>
+                    <span className="text-xs text-gray-400">({items.length})</span>
+                  </button>
+
+                  {/* Products (hidden when collapsed) */}
+                  {!isCollapsed && items.map(p => (
+                    <div key={p.id} className="flex justify-between items-center py-2.5 pl-8 border-b border-gray-50 group">
                       <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
                         <button onClick={() => toggleTiene(p)}
                           className={`cursor-pointer w-3 h-3 rounded-full flex-shrink-0 border-2 transition-colors ${
@@ -186,17 +203,15 @@ export default function Home() {
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                         <button onClick={() => abrirEditar(p)}
-                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                          title="Editar">✏️</button>
+                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors" title="Editar">✏️</button>
                         <button onClick={() => setDeleteConfirm({ id: p.id, nombre: p.nombre })}
-                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                          title="Eliminar">🗑️</button>
+                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors" title="Eliminar">🗑️</button>
                       </div>
                     </div>
                   ))}
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
         )}
 
@@ -273,14 +288,12 @@ export default function Home() {
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
               <input value={editForm.cantidad} onChange={e => setEditForm({...editForm, cantidad: e.target.value})}
-                className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                placeholder="Ej: 1 kg" />
+                className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: 1 kg" />
             </div>
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-600 mb-1">Nota</label>
               <input value={editForm.nota} onChange={e => setEditForm({...editForm, nota: e.target.value})}
-                className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                placeholder="Ej: Se está acabando" />
+                className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: Se está acabando" />
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
