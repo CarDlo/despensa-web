@@ -368,8 +368,7 @@ export default function Home() {
               {(() => {
                 // Agrupar productos de la despensa por categoria, excluir los que ya tienes activos con tiene=true
                 const sugerencias = productos.reduce((acc, p) => {
-                  // Solo mostrar productos que no estan activos (tiene=false) o sugerir basado en lo que tienes
-                  if (p.tiene) return acc;
+                  // Mostrar todos los productos de tu despensa como sugerencias
                   if (!acc[p.categoria]) acc[p.categoria] = new Set();
                   acc[p.categoria].add(p.nombre);
                   return acc;
