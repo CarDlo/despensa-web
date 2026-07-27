@@ -1,6 +1,7 @@
 import { defineConfig } from '@prisma/config'
 
 export default defineConfig({
-  earlyAccess: true,
+  datasourceUrl: process.env.DATABASE_URL,
   schema: './prisma/schema.prisma',
+  earlyAccess: true,
 })

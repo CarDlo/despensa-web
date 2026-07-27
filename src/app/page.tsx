@@ -9,6 +9,7 @@ dayjs.locale('es');
 
 type Producto = { id: number; nombre: string; categoria: string; tiene: boolean; nota?: string; cantidad?: string };
 type MenuDia = { id: number; fecha: string; platillo?: string; proteina?: string; verduras?: string; carbohidrato?: string; bebida?: string; preparacion?: string; tips?: string; tiempo_total?: string; mensaje_completo?: string };
+type ListaItem = { id: number; nombre: string; categoria: string; cantidad: string; nota: string; comprado: boolean; origen: string; created_at: string };
 
 const categorias: Record<string, string> = {
   proteinas: '🥩 Proteínas', verduras: '🥦 Verduras', frutas: '🍎 Frutas',
@@ -22,23 +23,21 @@ const catOrden = Object.keys(categorias);
 export default function Home() {
   const [activeTab, setActiveTab] = useState('despensa');
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [listaMercado, setListaMercado] = useState<ListaItem[]>([]);
   const [menuHoy, setMenuHoy] = useState<MenuDia | null>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [mensaje, setMensaje] = useState('');
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ id: 0, nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; nombre: string } | null>(null);
-  // Collapsible categories: true = colapsado, false/undefined = expandido
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; nombre: string; categoria: string; cantidad: string; nota: string } | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    supabaseRef.current = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-    );
+    supabaseRef.current = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '');
     loadData();
+    loadLista();
   }, []);
 
   async function loadData() {
@@ -55,6 +54,15 @@ export default function Home() {
       if (r2.data?.length) setMenuHoy(r2.data[0]);
     } catch (e) { console.error(e); }
     setLoading(false);
+  }
+
+  async function loadLista() {
+    try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      const r = await sb.from('lista_mercado').select('*').order('comprado', { ascending: true }).order('created_at', { ascending: false });
+      if (r.data) setListaMercado(r.data);
+    } catch (e) { console.error(e); }
   }
 
   function toggleCategoria(cat: string) {
@@ -100,16 +108,64 @@ export default function Home() {
     } catch { setMensaje('❌ Error al editar'); }
   }
 
-  async function eliminarProducto() {
+  function confirmarEliminar(p: Producto) {
+    setDeleteConfirm({ id: p.id, nombre: p.nombre, categoria: p.categoria, cantidad: p.cantidad || '', nota: p.nota || '' });
+  }
+
+  async function eliminarDefinitivo() {
     if (!deleteConfirm) return;
     try {
       const sb = supabaseRef.current;
       if (!sb) return;
       await sb.from('productos').delete().eq('id', deleteConfirm.id);
       setDeleteConfirm(null);
-      setMensaje(`🗑️ ${deleteConfirm.nombre} eliminado`);
+      setMensaje(`🗑️ ${deleteConfirm.nombre} eliminado definitivamente`);
       setTimeout(() => setMensaje(''), 3000);
       loadData();
+    } catch { setMensaje('❌ Error al eliminar'); }
+  }
+
+  async function agregarALista() {
+    if (!deleteConfirm) return;
+    try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      // Agregar a lista de mercado
+      await sb.from('lista_mercado').insert({
+        nombre: deleteConfirm.nombre,
+        categoria: deleteConfirm.categoria,
+        cantidad: deleteConfirm.cantidad,
+        nota: deleteConfirm.nota,
+        comprado: false,
+        origen: 'despensa'
+      });
+      // Eliminar de despensa
+      await sb.from('productos').delete().eq('id', deleteConfirm.id);
+      setDeleteConfirm(null);
+      setMensaje(`🛒 ${deleteConfirm.nombre} movido a la lista de compras`);
+      setTimeout(() => setMensaje(''), 3000);
+      loadData();
+      loadLista();
+    } catch { setMensaje('❌ Error al mover a la lista'); }
+  }
+
+  async function toggleComprado(item: ListaItem) {
+    try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      await sb.from('lista_mercado').update({ comprado: !item.comprado }).eq('id', item.id);
+      loadLista();
+    } catch { /* ignore */ }
+  }
+
+  async function eliminarDeLista(id: number, nombre: string) {
+    try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      await sb.from('lista_mercado').delete().eq('id', id);
+      setMensaje(`🗑️ ${nombre} eliminado de la lista`);
+      setTimeout(() => setMensaje(''), 3000);
+      loadLista();
     } catch { setMensaje('❌ Error al eliminar'); }
   }
 
@@ -122,28 +178,29 @@ export default function Home() {
     } catch { /* ignore */ }
   }
 
-  // Group products by category
   const grouped = productos.reduce((acc, p) => {
     if (!acc[p.categoria]) acc[p.categoria] = [];
     acc[p.categoria].push(p);
     return acc;
   }, {} as Record<string, Producto[]>);
   const sortedCats = Object.keys(grouped).sort((a, b) => catOrden.indexOf(a) - catOrden.indexOf(b));
+  const itemsPendientes = listaMercado.filter(i => !i.comprado).length;
 
   return (
     <div className="min-h-screen bg-[#f5f5f0]">
       <div className="max-w-[720px] mx-auto px-4">
         <header className="text-center py-6">
           <h1 className="text-2xl font-bold text-[#2d5a27]">🥘 Despensa del Hogar 🏠</h1>
-          <p className="text-sm text-gray-400 mt-1">📡 {productos.length} productos</p>
+          <p className="text-sm text-gray-400 mt-1">{productos.length} productos · {itemsPendientes} pendientes 🛒</p>
         </header>
 
         {/* Tabs */}
         <div className="flex gap-1.5 bg-white rounded-xl p-1.5 shadow-sm mb-4">
           {[
-            { id: 'despensa', label: '📦 Despensa' },
+            { id: 'despensa', label: `📦 Despensa (${productos.length})` },
+            { id: 'lista', label: `🛒 Lista (${itemsPendientes})` },
             { id: 'agregar', label: '➕ Agregar' },
-            { id: 'sugerencia', label: '🍽️ Sugerencia' }
+            { id: 'sugerencia', label: '🍽️ Menú' }
           ].map(tab => (
             <button key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -155,14 +212,11 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Mensaje flotante */}
         {mensaje && (
-          <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-4 py-3 text-sm border border-gray-200">
-            {mensaje}
-          </div>
+          <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-4 py-3 text-sm border border-gray-200">{mensaje}</div>
         )}
 
-        {/* Tab: Despensa - Categorías desplegables */}
+        {/* Tab: Despensa */}
         {activeTab === 'despensa' && (
           <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
             <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
@@ -174,44 +228,68 @@ export default function Home() {
               const isCollapsed = collapsed[cat];
               return (
                 <div key={cat} className="mb-1">
-                  {/* Category header - click to toggle */}
-                  <button
-                    onClick={() => toggleCategoria(cat)}
-                    className="cursor-pointer w-full flex items-center gap-2 py-2 text-left hover:bg-gray-50 rounded-lg px-2 transition-colors border-none bg-transparent"
-                  >
-                    <span className="text-xs text-gray-400 w-4 flex-shrink-0 transition-transform">
-                      {isCollapsed ? '▶' : '▼'}
-                    </span>
-                    <h3 className="font-semibold text-gray-600 text-sm flex-1">
-                      {categorias[cat] || cat}
-                    </h3>
+                  <button onClick={() => toggleCategoria(cat)}
+                    className="cursor-pointer w-full flex items-center gap-2 py-2 text-left hover:bg-gray-50 rounded-lg px-2 transition-colors border-none bg-transparent">
+                    <span className="text-xs text-gray-400 w-4 flex-shrink-0">{isCollapsed ? '▶' : '▼'}</span>
+                    <h3 className="font-semibold text-gray-600 text-sm flex-1">{categorias[cat] || cat}</h3>
                     <span className="text-xs text-gray-400">({items.length})</span>
                   </button>
-
-                  {/* Products (hidden when collapsed) */}
                   {!isCollapsed && items.map(p => (
-                    <div key={p.id} className="flex justify-between items-center py-2.5 pl-8 border-b border-gray-50 group">
+                    <div key={p.id} className="flex justify-between items-center py-2.5 pl-8 border-b border-gray-50">
                       <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
                         <button onClick={() => toggleTiene(p)}
                           className={`cursor-pointer w-3 h-3 rounded-full flex-shrink-0 border-2 transition-colors ${
                             p.tiene ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-gray-400'
-                          }`}
-                          title={p.tiene ? 'Tiene' : 'No tiene'} />
+                          }`} title={p.tiene ? 'Tiene' : 'No tiene'} />
                         <span className={`${!p.tiene ? 'text-gray-400' : ''}`}>{p.nombre}</span>
                         {p.nota && <span className="text-sm text-gray-400 italic">— {p.nota}</span>}
                         {p.cantidad && <span className="text-sm text-gray-400">({p.cantidad})</span>}
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         <button onClick={() => abrirEditar(p)}
-                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors" title="Editar">✏️</button>
-                        <button onClick={() => setDeleteConfirm({ id: p.id, nombre: p.nombre })}
-                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors" title="Eliminar">🗑️</button>
+                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-blue-50" title="Editar">✏️</button>
+                        <button onClick={() => confirmarEliminar(p)}
+                          className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-red-50" title="Eliminar">🗑️</button>
                       </div>
                     </div>
                   ))}
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Tab: 🛒 Lista de Compras */}
+        {activeTab === 'lista' && (
+          <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-100">
+              <h2 className="text-lg font-bold text-[#2d5a27]">🛒 Lista de Compras</h2>
+              <button onClick={loadLista} className="cursor-pointer bg-gray-100 hover:bg-gray-200 border-none px-3 py-1.5 rounded-lg text-sm">🔄</button>
+            </div>
+            {listaMercado.length === 0 ? (
+              <p className="text-gray-400 italic text-center py-8">🛒 Lista vacía. Los productos que marques como agotados aparecerán aquí.</p>
+            ) : (
+              listaMercado.map(item => (
+                <div key={item.id} className={`flex justify-between items-center py-2.5 border-b border-gray-50 ${item.comprado ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <button onClick={() => toggleComprado(item)}
+                      className={`cursor-pointer w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                        item.comprado ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-gray-400'
+                      }`}>
+                      {item.comprado && '✓'}
+                    </button>
+                    <div>
+                      <span className={`text-sm ${item.comprado ? 'line-through text-gray-400' : ''}`}>{item.nombre}</span>
+                      {item.cantidad && <span className="text-xs text-gray-400 ml-1">({item.cantidad})</span>}
+                      {item.nota && <span className="text-xs text-gray-400 italic ml-1">— {item.nota}</span>}
+                      <div className="text-xs text-gray-400">{categorias[item.categoria] || item.categoria} {item.origen === 'despensa' && '· de la despensa'}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => eliminarDeLista(item.id, item.nombre)}
+                    className="cursor-pointer bg-transparent border-none text-sm px-2 py-1 rounded hover:bg-red-50 flex-shrink-0" title="Eliminar">🗑️</button>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -229,14 +307,12 @@ export default function Home() {
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
                 <input value={form.cantidad} onChange={e => setForm({...form, cantidad: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                  placeholder="Ej: 1 kg" />
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: 1 kg" />
               </div>
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-600 mb-1">Nota</label>
                 <input value={form.nota} onChange={e => setForm({...form, nota: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                  placeholder="Ej: Se está acabando" />
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: Se está acabando" />
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
@@ -312,18 +388,28 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🗑️ Modal Confirmar Eliminar */}
+      {/* 🗑️ Modal Eliminar con 3 opciones */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={() => setDeleteConfirm(null)}>
-          <div className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl text-center" onClick={e => e.stopPropagation()}>
-            <div className="text-4xl mb-3">🗑️</div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">¿Eliminar producto?</h3>
-            <p className="text-gray-500 mb-5">¿Eliminar "<strong>{deleteConfirm.nombre}</strong>" de la despensa?</p>
-            <div className="flex gap-2">
+          <div className="bg-white rounded-2xl p-6 w-[90%] max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-2">
+              <div className="text-4xl mb-2">🗑️</div>
+              <h3 className="text-lg font-bold text-gray-800 mb-1">¿"{deleteConfirm.nombre}" se está acabando?</h3>
+              <p className="text-sm text-gray-500">¿Qué querés hacer con este producto?</p>
+            </div>
+            <div className="space-y-2 mt-4">
+              <button onClick={agregarALista}
+                className="cursor-pointer w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors border-none flex items-center justify-center gap-2">
+                🛒 Agregar a la lista de compras
+              </button>
+              <button onClick={eliminarDefinitivo}
+                className="cursor-pointer w-full py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors border-none flex items-center justify-center gap-2">
+                ❌ Eliminar definitivamente
+              </button>
               <button onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors border-none cursor-pointer">Cancelar</button>
-              <button onClick={eliminarProducto}
-                className="flex-[2] py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors border-none cursor-pointer">Sí, eliminar</button>
+                className="cursor-pointer w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors border-none">
+                ↩️ Cancelar
+              </button>
             </div>
           </div>
         </div>
