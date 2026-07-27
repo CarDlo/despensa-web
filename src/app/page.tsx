@@ -362,41 +362,52 @@ export default function Home() {
               <button type="submit" className="cursor-pointer w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors border-none">✅ Agregar a la despensa</button>
             </form>
 
-            {/* Productos sugeridos */}
+            {/* Productos sugeridos - desde tu propia despensa */}
             <div className="mt-5 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Productos comunes</h4>
-              {([
-                { cat: '🥩 Proteínas', items: ['Pechuga de pollo', 'Carne para pitar', 'Huevos', 'Atún', 'Costilla de cerdo', 'Pescado', 'Carne molida'] },
-                { cat: '🥦 Verduras', items: ['Cebolla cabezona', 'Cebolla larga', 'Tomate', 'Zanahoria', 'Brócoli', 'Espinaca', 'Habichuela', 'Pimentón', 'Ajo', 'Cilantro', 'Lechuga', 'Papa pastusa', 'Plátano verde'] },
-                { cat: '🍎 Frutas', items: ['Limón', 'Mango', 'Papaya', 'Sandía', 'Granadilla', 'Manzana', 'Banano', 'Fresas', 'Arándanos'] },
-                { cat: '🌾 Granos', items: ['Arroz', 'Frijoles', 'Lentejas', 'Garbanzos'] },
-                { cat: '🧀 Lácteos', items: ['Leche', 'Queso costeño', 'Queso crema', 'Yogur', 'Mantequilla'] },
-                { cat: '🗄️ Despensa', items: ['Aceite de soya', 'Azúcar', 'Sal', 'Café', 'Panela', 'Harina de maíz'] }
-              ]).map(grupo => (
-                <div key={grupo.cat} className="mb-3">
-                  <div className="text-xs text-gray-400 font-medium mb-1.5">{grupo.cat}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {grupo.items.filter(item =>
-                      !productos.some(p => p.nombre.toLowerCase().includes(item.toLowerCase()))
-                    ).map(item => (
-                      <button key={item}
-                        onClick={() => {
-                          setForm({...form, nombre: item});
-                          // Also set category based on the group
-                          const catMap: Record<string, string> = {
-                            '🥩 Proteínas': 'proteinas', '🥦 Verduras': 'verduras', '🍎 Frutas': 'frutas',
-                            '🌾 Granos': 'granos', '🧀 Lácteos': 'lacteos', '🗄️ Despensa': 'despensa'
-                          };
-                          setForm(prev => ({...prev, nombre: item, categoria: catMap[grupo.cat] || 'otros'}));
-                        }}
-                        className="cursor-pointer text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-green-100 hover:text-green-700 transition-colors border-none">
-                        + {item}
-                      </button>
-                    ))}
+              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Tus productos comunes</h4>
+              {(() => {
+                // Agrupar productos de la despensa por categoria, excluir los que ya tienes activos con tiene=true
+                const sugerencias = productos.reduce((acc, p) => {
+                  // Solo mostrar productos que no estan activos (tiene=false) o sugerir basado en lo que tienes
+                  if (p.tiene) return acc;
+                  if (!acc[p.categoria]) acc[p.categoria] = new Set();
+                  acc[p.categoria].add(p.nombre);
+                  return acc;
+                }, {} as Record<string, Set<string>>);
+                
+                const catLabels: Record<string, string> = {
+                  proteinas: '🥩 Proteínas', verduras: '🥦 Verduras', frutas: '🍎 Frutas',
+                  granos: '🌾 Granos', lacteos: '🧀 Lácteos', congelados: '❄️ Congelados',
+                  snacks: '🍿 Snacks', aceites: '🫒 Aceites', condimentos: '🧂 Condimentos',
+                  bebidas: '🥤 Bebidas', cafe: '☕ Café', despensa: '🗄️ Despensa',
+                  limpieza: '🧹 Limpieza', cuidado_personal: '🧴 Cuidado Personal', otros: '📦 Otros'
+                };
+                
+                const entries = Object.entries(sugerencias)
+                  .filter(([, items]) => items.size > 0)
+                  .sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b));
+                
+                if (entries.length === 0) {
+                  // Si no hay productos agotados, sugerir algunos de los activos
+                  return <p className="text-xs text-gray-400 italic">No hay productos sugeridos. ¡Agrega algo nuevo!</p>;
+                }
+                
+                return entries.map(([cat, items]) => (
+                  <div key={cat} className="mb-3">
+                    <div className="text-xs text-gray-400 font-medium mb-1.5">{catLabels[cat] || cat}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(items).slice(0, 10).map(item => (
+                        <button key={item}
+                          onClick={() => setForm(prev => ({...prev, nombre: item, categoria: cat}))}
+                          className="cursor-pointer text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-green-100 hover:text-green-700 transition-colors border-none">
+                          + {item}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-              <p className="text-xs text-gray-400 mt-2 italic">Solo se muestran productos que aún no tienes en la despensa</p>
+                ));
+              })()}
+              <p className="text-xs text-gray-400 mt-2 italic">Productos que has tenido antes y hoy no están en tu despensa</p>
             </div>
           </div>
         </div>
