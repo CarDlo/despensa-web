@@ -31,6 +31,7 @@ export default function Home() {
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ id: 0, nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; nombre: string; categoria: string; cantidad: string; nota: string } | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
@@ -199,7 +200,6 @@ export default function Home() {
           {[
             { id: 'despensa', label: `📦 Despensa (${productos.length})` },
             { id: 'lista', label: `🛒 Lista (${itemsPendientes})` },
-            { id: 'agregar', label: '➕ Agregar' },
             { id: 'sugerencia', label: '🍽️ Menú' }
           ].map(tab => (
             <button key={tab.id}
@@ -214,6 +214,14 @@ export default function Home() {
 
         {mensaje && (
           <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-4 py-3 text-sm border border-gray-200">{mensaje}</div>
+        )}
+
+        {/* Botón Agregar + (solo visible en tab despensa) */}
+        {activeTab === 'despensa' && (
+          <button onClick={() => setShowAddModal(true)}
+            className="cursor-pointer w-full py-3 mb-4 bg-[#2d5a27] text-white font-semibold rounded-xl hover:bg-[#1e3d1a] transition-colors border-none flex items-center justify-center gap-2 text-base shadow-sm">
+            ➕ Agregar producto
+          </button>
         )}
 
         {/* Tab: Despensa */}
@@ -293,39 +301,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab: Agregar */}
-        {activeTab === 'agregar' && (
-          <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
-            <h2 className="text-lg font-bold text-[#2d5a27] mb-4 pb-3 border-b-2 border-gray-100">➕ Agregar producto</h2>
-            <form onSubmit={agregarProducto}>
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
-                <input value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
-                  placeholder="Ej: Frijoles, Leche..." required />
-              </div>
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
-                <input value={form.cantidad} onChange={e => setForm({...form, cantidad: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: 1 kg" />
-              </div>
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Nota</label>
-                <input value={form.nota} onChange={e => setForm({...form, nota: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: Se está acabando" />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
-                <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}
-                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none">
-                  {Object.entries(categorias).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </div>
-              <button type="submit" className="cursor-pointer w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors border-none">✅ Agregar</button>
-            </form>
-          </div>
-        )}
-
         {/* Tab: Sugerencia */}
         {activeTab === 'sugerencia' && (
           <div className="bg-white rounded-xl p-5 shadow-sm mb-4">
@@ -350,6 +325,82 @@ export default function Home() {
           <p>Actualizado por Poncho 🤖 · <a href="https://github.com/CarDlo/despensa" className="text-gray-500 hover:underline" target="_blank">Ver en GitHub</a></p>
         </footer>
       </div>
+
+      {/* ➕ Modal Agregar Producto + Sugerencias */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl p-6 w-[90%] max-w-md shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#2d5a27]">➕ Nuevo producto</h3>
+              <button onClick={() => setShowAddModal(false)} className="cursor-pointer bg-transparent border-none text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            <form onSubmit={(e) => { agregarProducto(e); setShowAddModal(false); }}>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Producto *</label>
+                <input value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none"
+                  placeholder="Buscar o escribir producto..." required autoFocus />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
+                <input value={form.cantidad} onChange={e => setForm({...form, cantidad: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: 1 kg" />
+              </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Nota</label>
+                <input value={form.nota} onChange={e => setForm({...form, nota: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none" placeholder="Ej: Marca, preferencia" />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Categoría</label>
+                <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})}
+                  className="w-full p-2.5 border-2 border-gray-200 rounded-lg text-base bg-gray-50 focus:border-green-500 focus:outline-none">
+                  {Object.entries(categorias).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <button type="submit" className="cursor-pointer w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors border-none">✅ Agregar a la despensa</button>
+            </form>
+
+            {/* Productos sugeridos */}
+            <div className="mt-5 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Productos comunes</h4>
+              {([
+                { cat: '🥩 Proteínas', items: ['Pechuga de pollo', 'Carne para pitar', 'Huevos', 'Atún', 'Costilla de cerdo', 'Pescado', 'Carne molida'] },
+                { cat: '🥦 Verduras', items: ['Cebolla cabezona', 'Cebolla larga', 'Tomate', 'Zanahoria', 'Brócoli', 'Espinaca', 'Habichuela', 'Pimentón', 'Ajo', 'Cilantro', 'Lechuga', 'Papa pastusa', 'Plátano verde'] },
+                { cat: '🍎 Frutas', items: ['Limón', 'Mango', 'Papaya', 'Sandía', 'Granadilla', 'Manzana', 'Banano', 'Fresas', 'Arándanos'] },
+                { cat: '🌾 Granos', items: ['Arroz', 'Frijoles', 'Lentejas', 'Garbanzos'] },
+                { cat: '🧀 Lácteos', items: ['Leche', 'Queso costeño', 'Queso crema', 'Yogur', 'Mantequilla'] },
+                { cat: '🗄️ Despensa', items: ['Aceite de soya', 'Azúcar', 'Sal', 'Café', 'Panela', 'Harina de maíz'] }
+              ]).map(grupo => (
+                <div key={grupo.cat} className="mb-3">
+                  <div className="text-xs text-gray-400 font-medium mb-1.5">{grupo.cat}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {grupo.items.filter(item =>
+                      !productos.some(p => p.nombre.toLowerCase().includes(item.toLowerCase()))
+                    ).map(item => (
+                      <button key={item}
+                        onClick={() => {
+                          setForm({...form, nombre: item});
+                          // Also set category based on the group
+                          const catMap: Record<string, string> = {
+                            '🥩 Proteínas': 'proteinas', '🥦 Verduras': 'verduras', '🍎 Frutas': 'frutas',
+                            '🌾 Granos': 'granos', '🧀 Lácteos': 'lacteos', '🗄️ Despensa': 'despensa'
+                          };
+                          setForm(prev => ({...prev, nombre: item, categoria: catMap[grupo.cat] || 'otros'}));
+                        }}
+                        className="cursor-pointer text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-green-100 hover:text-green-700 transition-colors border-none">
+                        + {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-gray-400 mt-2 italic">Solo se muestran productos que aún no tienes en la despensa</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ✏️ Modal Editar */}
       {editModal && (
