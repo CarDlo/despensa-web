@@ -369,38 +369,8 @@ export default function Home() {
               <button type="submit" className="cursor-pointer w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors border-none">🛒 Agregar a la lista</button>
             </form>
             <div className="mt-5 pt-4 border-t border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Productos comunes</h4>
-              {(() => {
-                const sugerencias = productos.reduce((acc, p) => {
-                  if (!acc[p.categoria]) acc[p.categoria] = new Set();
-                  acc[p.categoria].add(p.nombre);
-                  return acc;
-                }, {} as Record<string, Set<string>>);
-                const catLabels: Record<string, string> = {
-                  proteinas: '🥩 Proteínas', verduras: '🥦 Verduras', frutas: '🍎 Frutas',
-                  granos: '🌾 Granos', lacteos: '🧀 Lácteos', congelados: '❄️ Congelados',
-                  snacks: '🍿 Snacks', aceites: '🫒 Aceites', condimentos: '🧂 Condimentos',
-                  bebidas: '🥤 Bebidas', cafe: '☕ Café', despensa: '🗄️ Despensa',
-                  limpieza: '🧹 Limpieza', cuidado_personal: '🧴 Cuidado Personal', otros: '📦 Otros'
-                };
-                const entries = Object.entries(sugerencias).filter(([, items]) => items.size > 0).sort(([a], [b]) => catOrden.indexOf(a) - catOrden.indexOf(b));
-                if (entries.length === 0) return <p className="text-xs text-gray-400 italic">No hay productos sugeridos aún</p>;
-                return entries.map(([cat, items]) => (
-                  <div key={cat} className="mb-3">
-                    <div className="text-xs text-gray-400 font-medium mb-1.5">{catLabels[cat] || cat}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Array.from(items).slice(0, 10).map(item => (
-                        <button key={item}
-                          onClick={() => setListaForm(prev => ({...prev, nombre: item, categoria: cat}))}
-                          className="cursor-pointer text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 hover:text-blue-700 transition-colors border-none">
-                          + {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ));
-              })()}
-              <p className="text-xs text-gray-400 mt-2 italic">Tus productos comunes para agregar rápido</p>
+              <h4 className="text-sm font-semibold text-gray-500 mb-3">🔄 Productos de tu despensa</h4>
+              <p className="text-xs text-gray-400 italic">Escribe el nombre del producto arriba o selecciona uno de la despensa</p>
             </div>
           </div>
         </div>
