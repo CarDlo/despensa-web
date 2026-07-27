@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model productos {
+  id         Int      @id @default(autoincrement())
+  nombre     String
+  categoria  String
+  tiene      Boolean  @default(true)
+  nota       String?
+  cantidad   String?
+  creado_por String   @default("web")
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@map("productos")
+}
+
+model menu_del_dia {
+  id              BigInt   @id @default(autoincrement())
+  created_at      DateTime @default(now()) @map("created_at")
+  fecha           DateTime @db.Date
+  platillo        String?
+  proteina        String?
+  verduras        String?
+  carbohidrato    String?
+  bebida          String?
+  preparacion     String?
+  tips            String?
+  tiempo_total    String?
+  mensaje_completo String?
+
+  @@map("menu_del_dia")
+}

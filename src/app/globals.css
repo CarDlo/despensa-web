@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-primary: #2d5a27;
+  --color-primary-light: #4caf50;
+  --color-bg: #f5f5f0;
+  --color-card: #ffffff;
+  --color-danger: #f44336;
+}
