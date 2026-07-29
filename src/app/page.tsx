@@ -152,6 +152,28 @@ export default function Home() {
     } catch { setMensaje('❌ Error al mover a la lista'); }
   }
 
+  async function agregarAListaDirecto(e: React.FormEvent) {
+    e.preventDefault();
+    if (!listaForm.nombre.trim()) return;
+    try {
+      const sb = supabaseRef.current;
+      if (!sb) return;
+      await sb.from('lista_mercado').insert({
+        nombre: listaForm.nombre.trim(),
+        categoria: listaForm.categoria,
+        cantidad: listaForm.cantidad.trim() || null,
+        nota: listaForm.nota.trim() || null,
+        comprado: false,
+        origen: 'manual'
+      });
+      setMensaje(`🛒 ${listaForm.nombre} agregado a la lista`);
+      setListaForm({ nombre: '', categoria: 'verduras', cantidad: '', nota: '' });
+      setShowAddListaModal(false);
+      setTimeout(() => setMensaje(''), 3000);
+      loadLista();
+    } catch { setMensaje('❌ Error al agregar a la lista'); }
+  }
+
   async function toggleComprado(item: ListaItem) {
     try {
       const sb = supabaseRef.current;
